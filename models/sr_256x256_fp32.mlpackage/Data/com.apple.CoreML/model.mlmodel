@@ -1,0 +1,526 @@
+ç
+
+x*
+ÄÄ†ÄR
+y*
+ÄÄ†Ä¢ﬂ¢+
+$com.github.apple.coremltools.version9.0¢:
++com.github.apple.coremltools.source_dialectTorchScript¢4
+#com.github.apple.coremltools.sourcetorch==2.15.0¢:
+,com.github.apple.coremltools.conversion_date
+2026-11-13≤Å!ì
+mainä
+%
+x 
+
+
+
+Ä
+ÄCoreML7◊
+CoreML7ÀyÄ
+const
+
+conv1_bias
+
+
+@*9
+val2
+
+
+@*"
+@model_path/weights/weight.bin@* 
+name
+
+"
+
+conv1_bias©
+const.
+conv1_weight
+
+@
+
+
+*L
+valE
+
+@
+
+
+*#
+@model_path/weights/weight.binÄ*"
+name
+
+"
+conv1_weightÅ
+const
+
+conv2_bias
+
+
+ *:
+val3
+
+
+ *#
+@model_path/weights/weight.bin¿5* 
+name
+
+"
+
+conv2_bias©
+const.
+conv2_weight
+
+ 
+@
+
+*L
+valE
+
+ 
+@
+
+*#
+@model_path/weights/weight.binÄ7*"
+name
+
+"
+conv2_weightt
+const
+
+conv3_bias
+
+
+*-
+val&
+
+
+
+
+
+ò√„;säÅ∏_…<Â*¯ª* 
+name
+
+"
+
+conv3_bias™
+const.
+conv3_weight
+
+
+ 
+
+*M
+valF
+
+
+ 
+
+*$
+@model_path/weights/weight.bin¿˜*"
+name
+
+"
+conv3_weightj
+const
+input_1_pad_type_0
+*
+val
+
+
+"
+custom*(
+name 
+
+"
+input_1_pad_type_0n
+const
+input_1_pad_0
+
+
+*!
+val
+
+
+
+
+
+*#
+name
+
+"
+input_1_pad_0t
+const!
+input_1_strides_0
+
+
+*
+val
+
+
+
+
+*'
+name
+
+"
+input_1_strides_0x
+const#
+input_1_dilations_0
+
+
+*
+val
+
+
+
+
+*)
+name!
+
+"
+input_1_dilations_0a
+const
+input_1_groups_0
+*
+val
+
+
+*&
+name
+
+"
+input_1_groups_0∏
+conv"
+pad_type
+
+input_1_pad_type_0
+pad
+
+input_1_pad_0 
+strides
+
+input_1_strides_0
+
+x
+
+x$
+	dilations
+
+input_1_dilations_0
+weight
+
+conv1_weight
+bias
+
+
+conv1_bias
+groups
+
+input_1_groups_0+
+input_1 
+
+
+@
+Ä
+Ä*
+name
+
+"	
+input_1d
+relu
+x
+	
+input_1+
+input_3 
+
+
+@
+Ä
+Ä*
+name
+
+"	
+input_3j
+const
+input_5_pad_type_0
+*
+val
+
+
+"
+custom*(
+name 
+
+"
+input_5_pad_type_0n
+const
+input_5_pad_0
+
+
+*!
+val
+
+
+
+
+
+*#
+name
+
+"
+input_5_pad_0t
+const!
+input_5_strides_0
+
+
+*
+val
+
+
+
+
+*'
+name
+
+"
+input_5_strides_0x
+const#
+input_5_dilations_0
+
+
+*
+val
+
+
+
+
+*)
+name!
+
+"
+input_5_dilations_0a
+const
+input_5_groups_0
+*
+val
+
+
+*&
+name
+
+"
+input_5_groups_0æ
+conv"
+pad_type
+
+input_5_pad_type_0
+pad
+
+input_5_pad_0 
+strides
+
+input_5_strides_0
+x
+	
+input_3$
+	dilations
+
+input_5_dilations_0
+weight
+
+conv2_weight
+bias
+
+
+conv2_bias
+groups
+
+input_5_groups_0+
+input_5 
+
+
+ 
+Ä
+Ä*
+name
+
+"	
+input_5d
+relu
+x
+	
+input_5+
+input_7 
+
+
+ 
+Ä
+Ä*
+name
+
+"	
+input_7f
+const
+input_pad_type_0
+*
+val
+
+
+"
+custom*&
+name
+
+"
+input_pad_type_0j
+const
+input_pad_0
+
+
+*!
+val
+
+
+
+
+
+*!
+name
+
+"
+input_pad_0p
+const
+input_strides_0
+
+
+*
+val
+
+
+
+
+*%
+name
+
+"
+input_strides_0t
+const!
+input_dilations_0
+
+
+*
+val
+
+
+
+
+*'
+name
+
+"
+input_dilations_0]
+const
+input_groups_0
+*
+val
+
+
+*$
+name
+
+"
+input_groups_0∞
+conv 
+pad_type
+
+input_pad_type_0
+pad
+
+input_pad_0
+strides
+
+input_strides_0
+x
+	
+input_7"
+	dilations
+
+input_dilations_0
+weight
+
+conv3_weight
+bias
+
+
+conv3_bias
+groups
+
+input_groups_0)
+input 
+
+
+
+Ä
+Ä*
+name
+
+	"
+inputL
+const
+var_41
+*
+val
+
+
+*
+name
+
+	"
+op_41Å
+pixel_shuffle
+upscale_factor
+
+
+var_41
+x	
+
+input%
+y 
+
+
+
+Ä
+Ä*
+name
+
+	"
+op_42"Ê
+	buildInfoÿ"
+
+
+≈"¬
+6
+!
+
+"
+coremltools-version
+	
+"
+9.0
+A
+)
+!
+"
+coremltools-component-torch
+
+
+"
+2.15.0
+E
+(
+ 
+"
+coremltools-source-dialect
+
+"
+TorchScript
