@@ -31,6 +31,14 @@ static double psnr(const Tensor &a, const Tensor &b)
     return 10 * std::log10(1.0 / mse);
 }
 
+static void check(const char* name, const Tensor& out, const Tensor& ref) {
+    if (out.data.size() != ref.data.size()) {
+        printf("%-34s WRONG SHAPE\n", name);
+        return;
+    }
+    printf("%-34s max abs err %.2e   psnr %6.1f dB\n", name, maxDiff(out, ref), psnr(out, ref));
+}
+
 int main(int argc, char** argv) {
     Weights net;
     if (!load_weights(MODEL_DIR + "weights.bin", net)) {
@@ -40,12 +48,11 @@ int main(int argc, char** argv) {
 
     Tensor in, ref;
     if (!read_tensor(MODEL_DIR + "ref_in.bin", in) || !read_tensor(MODEL_DIR + "ref_out.bin", ref)) {
-        printf("missing reference tensors\n");
+        printf("missing reference tensors, run train/export.py\n");
         return 1;
     }
-    printf("verify against pytorch, input %dx%d\n\n", in.h, in.w);
+    printf("comparing against PyTorch output, input %dx%d\n\n", in.h, in.w);
 
-    Tensor out = run_naive(net, in);
-    printf("cpu_naive       max err %.2e  psnr %.1f dB\n", maxDiff(out, ref), psnr(out, ref));
+    check("cpu_naive", run_naive(net, in), ref);
     return 0;
 }
