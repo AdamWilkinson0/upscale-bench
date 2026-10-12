@@ -9,7 +9,7 @@ upscale-bench: $(OBJS)
 
 build/%.o: src/%.cpp src/*.h
 	@mkdir -p build
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) -DACCELERATE_NEW_LAPACK -c $< -o $@
 
 clean:
 	rm -rf build upscale-bench
