@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "cpu_conv.h"
+#include "cpu_fast.h"
 #include "weights.h"
 
 static const std::string MODEL_DIR = "models/";
@@ -54,5 +55,6 @@ int main(int argc, char** argv) {
     printf("comparing against PyTorch output, input %dx%d\n\n", in.h, in.w);
 
     check("cpu_naive", run_naive(net, in), ref);
+    check("cpu_accelerate", run_accel(net, in), ref);
     return 0;
 }
