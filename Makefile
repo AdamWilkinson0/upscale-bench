@@ -1,8 +1,11 @@
 CXX = clang++
 CXXFLAGS = -std=c++17 -O2 -Wall
-FRAMEWORKS = -framework Accelerate
+OBJCFLAGS = $(CXXFLAGS) -fobjc-arc
+FRAMEWORKS = -framework Foundation -framework Metal -framework MetalPerformanceShaders \
+             -framework MetalPerformanceShadersGraph -framework Accelerate
 
-OBJS = build/main.o build/weights.o build/cpu_conv.o build/cpu_fast.o
+OBJS = build/main.o build/weights.o build/cpu_conv.o build/cpu_fast.o \
+       build/mps_backend.o
 
 upscale-bench: $(OBJS)
 	$(CXX) $(OBJS) -o $@ $(FRAMEWORKS)
@@ -10,6 +13,10 @@ upscale-bench: $(OBJS)
 build/%.o: src/%.cpp src/*.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -DACCELERATE_NEW_LAPACK -c $< -o $@
+
+build/%.o: src/%.mm src/*.h
+	@mkdir -p build
+	$(CXX) $(OBJCFLAGS) -c $< -o $@
 
 clean:
 	rm -rf build upscale-bench

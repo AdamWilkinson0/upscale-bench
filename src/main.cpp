@@ -7,6 +7,7 @@
 
 #include "cpu_conv.h"
 #include "cpu_fast.h"
+#include "mps_backend.h"
 #include "weights.h"
 
 static const std::string MODEL_DIR = "models/";
@@ -56,5 +57,9 @@ int main(int argc, char** argv) {
 
     check("cpu_naive", run_naive(net, in), ref);
     check("cpu_accelerate", run_accel(net, in), ref);
+
+    MPSNet* mps = mps_create(net);
+    check("mpsgraph_gpu", mps_run(mps, in), ref);
+    mps_destroy(mps);
     return 0;
 }
