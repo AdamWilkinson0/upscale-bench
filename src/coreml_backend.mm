@@ -97,3 +97,29 @@ bool coreml_run(CoreMLModel* m, const Tensor& in, Tensor& out) {
 void coreml_destroy(CoreMLModel* m) {
     delete m;
 }
+
+std::vector<std::pair<std::string, std::string>> coreml_plan(const std::string& compiled, int units) {
+    __block std::vector<std::pair<std::string, std::string>> ops;
+    NSURL* url = [NSURL fileURLWithPath:[NSString stringWithUTF8String:compiled.c_str()]];
+    dispatch_semaphore_t sem = dispatch_semaphore_create(0);
+
+    [MLComputePlan loadContentsOfURL:url
+                       configuration:getConfig(units)
+                   completionHandler:^(MLComputePlan* plan, NSError* err) {
+        if (plan) {
+            MLModelStructureProgramFunction* fn = plan.modelStructure.program.functions[@"main"];
+            for (MLModelStructureProgramOperation* op in fn.block.operations) {
+                MLComputePlanDeviceUsage* usage = [plan computeDeviceUsageForMLProgramOperation:op];
+                if (!usage) continue;
+                id dev = usage.preferredComputeDevice;
+                std::string name = "CPU";
+                if ([dev isKindOfClass:[MLGPUComputeDevice class]]) name = "GPU";
+                if ([dev isKindOfClass:[MLNeuralEngineComputeDevice class]]) name = "ANE";
+                ops.push_back({op.operatorName.UTF8String, name});
+            }
+        }
+        dispatch_semaphore_signal(sem);
+    }];
+    dispatch_semaphore_wait(sem, DISPATCH_TIME_FOREVER);
+    return ops;
+}
