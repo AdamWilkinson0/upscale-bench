@@ -80,8 +80,15 @@ bool coreml_run(CoreMLModel* m, const Tensor& in, Tensor& out) {
         out = Tensor(y.shape[1].intValue, y.shape[2].intValue, y.shape[3].intValue);
         float* dst = out.data.data();
         size_t count = out.data.size();
+        // output comes back as float16 sometimes even when asking for float32
+        bool isHalf = (y.dataType == MLMultiArrayDataTypeFloat16);
         [y getBytesWithHandler:^(const void* ptr, NSInteger size) {
-            memcpy(dst, ptr, count * sizeof(float));
+            if (isHalf) {
+                const _Float16* p = (const _Float16*)ptr;
+                for (size_t i=0; i<count; i++) dst[i] = (float)p[i];
+            } else {
+                memcpy(dst, ptr, count * sizeof(float));
+            }
         }];
         return true;
     }
