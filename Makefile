@@ -14,6 +14,10 @@ build/%.o: src/%.cpp src/*.h
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) -DACCELERATE_NEW_LAPACK -c $< -o $@
 
+build/image.o: src/image.cpp src/*.h
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) -w -c $< -o $@
+
 build/%.o: src/%.mm src/*.h
 	@mkdir -p build
 	$(CXX) $(OBJCFLAGS) -c $< -o $@
