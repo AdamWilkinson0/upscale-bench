@@ -2,13 +2,16 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <map>
 #include <string>
 #include <vector>
 
 #include "coreml_backend.h"
 #include "cpu_conv.h"
 #include "cpu_fast.h"
+#include "image.h"
 #include "mps_backend.h"
+#include "timer.h"
 #include "weights.h"
 
 static const std::string MODEL_DIR = "models/";
@@ -109,9 +112,125 @@ static int cmd_verify(const Weights& net) {
     return 0;
 }
 
+static void report(FILE* csv, const std::string& name, int h, int w, double load_ms, const Stats& s) {
+    printf("  %-34s load %8.1f ms  first %9.1f ms  median %9.2f ms  p95 %9.2f ms  %7.1f fps\n",
+           name.c_str(), load_ms, s.first, s.median, s.p95, 1000.0 / s.median);
+    fprintf(csv, "%s,%d,%d,%.2f,%.3f,%.3f,%.3f,%.2f\n", name.c_str(), h, w, load_ms, s.first, s.median, s.p95, 1000.0 / s.median);
+    fflush(csv);
+}
+
+static int cmd_bench(const Weights& net, int runs) {
+    FILE* csv = fopen("results/results.csv", "w");
+    if (!csv) {
+        printf("could not open results/results.csv\n");
+        return 1;
+    }
+    fprintf(csv, "backend,h,w,load_ms,first_ms,median_ms,p95_ms,fps\n");
+
+    for (int i = 0; i < 4; i++) {
+        int h = SIZES[i][0], w = SIZES[i][1];
+        Tensor in = randInput(h,w);
+        printf("\ninput %dx%d -> output %dx%d\n", w, h, w * 2, h * 2);
+
+        Stats s = time_it([&] { run_naive(net, in); }, 0, 3);
+        report(csv, "cpu_naive", h, w, 0, s);
+
+        Stats s = time_it([&] { run_accel(net, in); }, 2, runs);
+        report(csv, "cpu_accelerate", h, w, 0, s);
+
+        // new graph for each size so first run includes the graph compile
+        // TODO fp16 version of the mps graph?
+        double t0 = now_ms();
+        MPSNet* mps = mps_create(net);
+        double mps_load = now_ms() - t0;
+        s = time_it([&] { mps_run(mps, in); }, 3, runs);
+        report(csv, "mpsgraph_gpu", h, w, mps_load, s);
+        mps_destroy(mps);
+
+        for (int bits : {32, 16}) {
+            double compile_ms = 0;
+            std::string compiled = coreml_compile(model_path(h, w, bits), &compile_ms);
+            if (compiled.empty()) continue;
+            printf("  (coreml fp%d compile %.1f ms)\n", bits, compile_ms);
+            for (int units = 0; units < 4; units++) {
+                double load_ms = 0;
+                CoreMLModel* m = coreml_load(compiled, units, &load_ms);
+                if (!m) continue;
+                Tensor out;
+                s = time_it([&] { coreml_run(m, in, out); }, 3, runs);
+                report(csv, "coreml_fp" + std::to_string(bits) + "_" + units_name(units), h, w, load_ms, s);
+                coreml_destroy(m);
+            }
+        }
+    }
+    fclose(csv);
+    printf("\nwrote results/results.csv\n");
+    return 0;
+}
+
+static int cmd_plan() {
+    for (int i = 0; i < 4; i++) {
+        int h = SIZES[i][0], w = SIZES[i][1];
+        for (int bits : {32, 16}) {
+            std::string compiled = coreml_compile(model_path(h, w, bits), nullptr);
+            if (compiled.empty()) continue;
+            printf("\n%dx%d fp%d\n", w, h, bits);
+            for (int units = 0; units < 4; units++) {
+                auto ops = coreml_plan(compiled, units);
+                std::map<std::string, int> counts;
+                std::string detail;
+                for (auto& op : ops) {
+                    counts[op.second]++;
+                    detail += op.first + ":" + op.second + " ";
+                }
+                printf("  %-20s", units_name(units));
+                for (auto& c : counts) printf(" %s x%d", c.first.c_str(), c.second);
+                printf("   [ %s]\n", detail.c_str());
+            }
+        }
+    }
+    return 0;
+}
+
+static int run_image(const Weights& net, const std::string& in_path, const std::string& out_path, const std::string& backend) {
+    Tensor rgb;
+    if (!load_image(in_path, rgb)) {
+        printf("could not read %s\n", in_path.c_str());
+        return 1;
+    }
+    Tensor y, cb, cr;
+    rgb_to_ycbcr(rgb, y, cb, cr);
+
+    Tensor y2;
+    double t0 = now_ms();
+    if (backend == "naive") {
+        y2 = run_naive(net, y);
+    } else if (backend == "accel") {
+        y2 = run_accel(net, y);
+    } else if (backend == "bilinear") {
+        y2 = bilinear_up(y, net.scale);
+    } else {
+        MPSNet* mps = mps_create(net);
+        y2 = mps_run(mps, y);
+        mps_destroy(mps);
+    }
+    double ms = now_ms() - t0;
+
+    Tensor out = ycbcr_to_rgb(y2, bilinear_up(cb, net.scale), bilinear_up(cr, net.scale));
+    if (!save_image(out_path, out)) {
+        printf("could not write %s\n", out_path.c_str());
+        return 1;
+    }
+    printf("%dx%d -> %dx%d with %s in %.1f ms\n", rgb.w, rgb.h, out.w, out.h, backend.c_str(), ms);
+    return 0;
+}
+
 static void usage() {
     printf("usage:\n");
     printf("  upscale-bench verify\n");
+    printf("  upscale-bench bench [--runs N]\n");
+    printf("  upscale-bench plan\n");
+    printf("  upscale-bench run in.png out.png [mps|accel|naive|bilinear]\n");
 }
 
 int main(int argc, char** argv) {
@@ -128,6 +247,17 @@ int main(int argc, char** argv) {
     }
 
     if (cmd == "verify") return cmd_verify(net);
+    if (cmd == "plan") return cmd_plan();
+    if (cmd == "bench") {
+        int runs = 30;
+        for (int i = 2; i < argc; i++) {
+            if (!strcmp(argv[i], "--runs") && i + 1 < argc) runs = atoi(argv[++i]);
+        }
+        return cmd_bench(net, runs);
+    }
+    if (cmd == "run" && argc >= 4) {
+        return run_image(net, argv[2], argv[3], argc >= 5 ? argv[4] : "mps");
+    }
     usage();
     return 1;
 }
