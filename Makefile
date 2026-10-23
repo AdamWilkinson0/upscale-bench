@@ -4,7 +4,7 @@ OBJCFLAGS = $(CXXFLAGS) -fobjc-arc
 FRAMEWORKS = -framework Foundation -framework Metal -framework MetalPerformanceShaders \
              -framework MetalPerformanceShadersGraph -framework CoreML -framework Accelerate
 
-OBJS = build/main.o build/weights.o build/cpu_conv.o build/cpu_fast.o \
+OBJS = build/main.o build/weights.o build/cpu_conv.o build/cpu_fast.o build/image.o \
        build/mps_backend.o build/coreml_backend.o
 
 upscale-bench: $(OBJS)
