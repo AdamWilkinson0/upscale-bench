@@ -119,7 +119,7 @@ static void report(FILE* csv, const std::string& name, int h, int w, double load
     fflush(csv);
 }
 
-static int cmd_bench(const Weights& net, int runs) {
+static int cmd_bench(const Weights& net, int runs, bool skip_naive) {
     FILE* csv = fopen("results/results.csv", "w");
     if (!csv) {
         printf("could not open results/results.csv\n");
@@ -132,8 +132,10 @@ static int cmd_bench(const Weights& net, int runs) {
         Tensor in = randInput(h,w);
         printf("\ninput %dx%d -> output %dx%d\n", w, h, w * 2, h * 2);
 
-        Stats s = time_it([&] { run_naive(net, in); }, 0, 3);
-        report(csv, "cpu_naive", h, w, 0, s);
+        if (!skip_naive) {
+            Stats s = time_it([&] { run_naive(net, in); }, 0, 3);
+            report(csv, "cpu_naive", h, w, 0, s);
+        }
 
         Stats s = time_it([&] { run_accel(net, in); }, 2, runs);
         report(csv, "cpu_accelerate", h, w, 0, s);
@@ -228,7 +230,7 @@ static int run_image(const Weights& net, const std::string& in_path, const std::
 static void usage() {
     printf("usage:\n");
     printf("  upscale-bench verify\n");
-    printf("  upscale-bench bench [--runs N]\n");
+    printf("  upscale-bench bench [--runs N] [--skip-naive]\n");
     printf("  upscale-bench plan\n");
     printf("  upscale-bench run in.png out.png [mps|accel|naive|bilinear]\n");
 }
@@ -251,10 +253,12 @@ int main(int argc, char** argv) {
     if (cmd == "plan") return cmd_plan();
     if (cmd == "bench") {
         int runs = 30;
+        bool skipNaive = false;
         for (int i = 2; i < argc; i++) {
             if (!strcmp(argv[i], "--runs") && i + 1 < argc) runs = atoi(argv[++i]);
+            if (!strcmp(argv[i], "--skip-naive")) skipNaive = true;
         }
-        return cmd_bench(net, runs);
+        return cmd_bench(net, runs, skipNaive);
     }
     if (cmd == "run" && argc >= 4) {
         return run_image(net, argv[2], argv[3], argc >= 5 ? argv[4] : "mps");
