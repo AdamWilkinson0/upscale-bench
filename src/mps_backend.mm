@@ -5,6 +5,7 @@
 
 struct MPSNet {
     id<MTLDevice> device;
+    id<MTLCommandQueue> queue;
     MPSGraphDevice* graphDevice;
     MPSGraph* graph;
     MPSGraphTensor* input;
@@ -14,6 +15,7 @@ struct MPSNet {
 MPSNet* mps_create(const Weights& net) {
     MPSNet* m = new MPSNet();
     m->device = MTLCreateSystemDefaultDevice();
+    m->queue = [m->device newCommandQueue];
     m->graphDevice = [MPSGraphDevice deviceWithMTLDevice:m->device];
     m->graph = [[MPSGraph alloc] init];
 
@@ -57,7 +59,9 @@ Tensor mps_run(MPSNet* m, const Tensor& in) {
                                                                          data:data
                                                                         shape:@[@1, @(in.c), @(in.h), @(in.w)]
                                                                      dataType:MPSDataTypeFloat32];
-        NSDictionary* res = [m->graph runWithFeeds:@{m->input : feed} targetTensors:@[m->output] targetOperations:nil];
+        // NSDictionary* res = [m->graph runWithFeeds:@{m->input : feed} targetTensors:@[m->output] targetOperations:nil];
+        // ^ gets slower every frame at 1080p, use our own queue
+        NSDictionary* res = [m->graph runWithMTLCommandQueue:m->queue feeds:@{m->input : feed} targetTensors:@[m->output] targetOperations:nil];
         MPSGraphTensorData* y = res[m->output];
         NSArray<NSNumber*>* shape = y.shape;
         Tensor out(shape[1].intValue, shape[2].intValue, shape[3].intValue);
