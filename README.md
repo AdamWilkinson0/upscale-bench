@@ -16,10 +16,10 @@ The model is a 3-layer ESPCN-style network (21,284 parameters) that works on the
 
 ## Key findings
 
-- **The Neural Engine needs FP16.** An FP32 model silently falls back to the CPU even when you ask for `cpuAndNeuralEngine` — nothing warns you. I only caught this by checking with `MLComputePlan`.
-- **FP16 quality loss is negligible.** Max error on the ANE is ~1.4e-3, well under one 8-bit pixel step (3.9e-3). You wouldn't see the difference.
+- **The Neural Engine needs FP16.** An FP32 model silently falls back to the CPU even when you ask for cpuAndNeuralEngine, there is no warning. I only caught this by checking with MLComputePlan.
+- **FP16 quality loss is negligible.** - Max error on the ANE is ~1.4e-3, well under one 8-bit pixel step (3.9e-3). You wouldn't see the difference.
 - **First-run latency matters.** The ANE model takes ~118 ms to load and the first inference is 2× slower than steady state. MPSGraph is even worse: first run is 6× slower because the graph compiles for the input shape on the fly.
-- **MPSGraph has a gotcha with command queues.** Using `runWithFeeds:` in a loop caused latency to climb from 55 ms to over 1 second after ~10 frames. Switching to `runWithMTLCommandQueue:` with one reused queue fixed it.
+- **MPSGraph has a gotcha with command queues.**- Using runWithFeeds: in a loop caused latency to climb from 55 ms to over 1 second after ~10 frames. Switching to runWithMTLCommandQueue: with one reused queue fixed it.
 
 ## Run
 
