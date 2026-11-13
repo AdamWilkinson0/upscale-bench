@@ -1,12 +1,12 @@
 # Performance report: 2× super-resolution on Apple silicon
 
-The goal here was to take a small super-resolution CNN, get it running through every inference path Apple silicon offers, and see how they actually compare. Not just "GPU is faster than CPU" — I wanted real numbers, gotchas, and the stuff the documentation doesn't tell you.
+The goal here was to take a small super-resolution CNN, get it running through every inference path Apple silicon offers, and see how they actually compare. Not just "GPU is faster than CPU" - I wanted real numbers, gotchas, and the stuff the documentation doesn't tell you.
 
 **Setup:** Apple M4, macOS 27.0. The model is a 3-layer ESPCN-style CNN (21,284 params) that upscales the Y channel by 2×. I ran 30 timed iterations per configuration after a 3-run warmup (the naive baseline only got 3 runs because life is short). Raw data is in `results/results.csv`.
 
 ## The short version
 
-The Neural Engine with an FP16 Core ML model does 1080p→4K in **14.1 ms** (~71 fps). That's about 2,500× faster than the naive C++ loops and 2.5× faster than the GPU. But it *only* works with FP16 — an FP32 model silently gets dumped onto the CPU, and nothing tells you. I would have completely missed this if I hadn't checked with `MLComputePlan`.
+The Neural Engine with an FP16 Core ML model does 1080p→4K in **14.1 ms** (~71 fps). That's about 2,500× faster than the naive C++ loops and 2.5× faster than the GPU. But it *only* works with FP16 - an FP32 model silently gets dumped onto the CPU, and nothing tells you. I would have completely missed this if I hadn't checked with `MLComputePlan`.
 
 ## Steady-state latency (median, ms)
 
@@ -25,13 +25,13 @@ The Neural Engine with an FP16 Core ML model does 1080p→4K in **14.1 ms** (~71
 
 ![latency](results/latency.png)
 
-## What I found
+## What I found during the project
 
 ### 1. The Neural Engine won't touch FP32
 
-This was probably the most interesting discovery. I used `MLComputePlan` (via `upscale-bench plan`) to see where each op actually gets scheduled. With the FP32 model, every single operation goes to the CPU under `cpuAndNeuralEngine`, and to the GPU under `all`. With FP16, all 8 ops including the pixel shuffle land on the ANE.
+This was probably the most interesting discovery. I used MLComputePlan (via `upscale-bench plan`) to see where each op actually gets scheduled. With the FP32 model, every single operation goes to the CPU under cpuAndNeuralEngine, and to the GPU under `all`. With FP16, all 8 ops including the pixel shuffle land on the ANE.
 
-The timings confirm it — FP32 with `cpuAndNeuralEngine` gives you 144 ms, basically identical to `cpuOnly` at 140 ms. So you think you're using the Neural Engine but you're just running on the CPU.
+The timings confirm it — FP32 with cpuAndNeuralEngine gives you 144 ms, basically identical to `cpuOnly` at 140 ms. So you think you're using the Neural Engine but you're just running on the CPU.
 
 This is the kind of thing that's easy to miss. If I had only benchmarked `computeUnits = .all` with FP32, I'd have seen GPU-class performance and assumed that was as good as it gets. The ANE was sitting there unused the whole time.
 
@@ -74,22 +74,22 @@ Switching to `runWithMTLCommandQueue:` with a single `MTLCommandQueue` created u
 
 ### 5. Flexible input shapes
 
-I ended up using one fixed-shape Core ML model per resolution. Early on I tried `EnumeratedShapes` with a simpler one-layer test model, and it crashed under `cpuAndNeuralEngine` at the non-default shape. I didn't keep a reproducer or investigate further so I can't say much beyond "it didn't work for me" — might have been something I was doing wrong.
+I ended up using one fixed-shape Core ML model per resolution. Early on I tried `EnumeratedShapes` with a simpler one-layer test model, and it crashed under `cpuAndNeuralEngine` at the non-default shape. I didn't keep a reproducer or investigate further so I can't say much beyond "it didn't work for me" - might have been something I was doing wrong.
 
 ### 6. CPU performance
 
-For reference: the naive 6-nested-loop implementation takes 36 seconds per 1080p frame. Rearranging it as im2col + `cblas_sgemm` from Accelerate gets that down to 1.1 seconds — 33× faster, but still 8× slower than Core ML's own CPU path. I'm guessing Core ML's CPU backend is multithreaded and better vectorised but I didn't look into it. Either way, hand-written CPU code is really only useful here as a correctness reference for the other backends.
+For reference the naive 6-nested-loop implementation takes 36 seconds per 1080p frame. Rearranging it as im2col + cblas_sgemm from Accelerate gets that down to 1.1 seconds — 33× faster, but still 8× slower than Core ML's own CPU path. I'm guessing Core ML's CPU backend is multithreaded and better vectorised but I didn't look into it. Either way, hand-written CPU code is really only useful here as a correctness reference for the other backends.
 
 ## What I'd recommend for shipping this
 
-1. **Use an FP16 Core ML model with `cpuAndNeuralEngine` or `all`.** 71 fps at 1080p→4K is fast enough for real-time video. But verify with `MLComputePlan` that ops are actually landing on the ANE — don't just trust the compute units setting.
+1. **Use an FP16 Core ML model with `cpuAndNeuralEngine` or `all`.** 71 fps at 1080p→4K is fast enough for real-time video. But verify with `MLComputePlan` that ops are actually landing on the ANE, don't just trust the compute units setting.
 2. **Pre-load the model and do a dummy prediction** on a background thread at app launch or when the user opens the tool. Otherwise the first frame they see eats 100+ ms of model load plus a slow first inference.
-3. **If you're using MPSGraph directly** (e.g. to keep everything on the GPU as part of a Metal pipeline), create one command queue and reuse it, and warm up for each input size you'll use.
+3. **If you're using MPSGraph directly** - (e.g. to keep everything on the GPU as part of a Metal pipeline), create one command queue and reuse it, and warm up for each input size you'll use.
 4. **Compare outputs between devices in your tests.** FP16 gave slightly different results on CPU, GPU and ANE — probably fine for images but worth knowing about.
 
 ## Limitations
 
-- Tested on one machine (M4). Other chips will have different GPU/ANE performance ratios.
+- Tested on one machine (M4 Macbook Air). Other chips will have different GPU/ANE performance ratios.
 - This is a small model. A bigger network might not fit on the ANE as neatly.
 - Timings include copying input/output to/from a CPU buffer. An app that stays entirely on the GPU would avoid some of that overhead for MPSGraph.
 - I didn't measure power draw or thermals.
